@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CEPREVEN 50 Aniversario · Control de Acceso</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script type="module">
@@ -818,41 +818,8 @@ function renderInviteCard(idx){
 function prevInvite(dir){previewIndex=(previewIndex+dir+guests.length)%guests.length;renderInviteCard(previewIndex);}
 
 // ── EXPORT ────────────────────────────────────────────────────────
-async function exportParaEnvio(){
-  // Lee directamente de Firebase para asegurar datos actualizados
-  let data = [];
-  if(window._fbReady){
-    const {db,ref,get} = window._fb;
-    try{
-      const snap = await get(ref(db,'guests'));
-      const fbGuests = snap.val() ? Object.values(snap.val()) : [];
-      if(fbGuests.length > 0){
-        data = fbGuests.map(g=>({
-          'ID': g.id||'',
-          'NOMBRE': g.nombre||'',
-          'EMPRESA': g.empresa||'',
-          'EMAIL': g.email||'',
-          'TRATAMIENTO': g.tratamiento||'Estimado/a'
-        }));
-      }
-    }catch(e){ console.error('Firebase read error:',e); }
-  }
-  // Fallback a variable local
-  if(data.length===0 && guests && guests.length>0){
-    data = guests.map(g=>({
-      'ID': g.id||'',
-      'NOMBRE': g.nombre||'',
-      'EMPRESA': g.empresa||'',
-      'EMAIL': g.email||'',
-      'TRATAMIENTO': g.tratamiento||'Estimado/a'
-    }));
-  }
-  if(data.length===0){
-    alert('No hay invitados. Total en memoria: '+guests.length);
-    return;
-  }
-  exportXLSX(data,'INVITADOS_ENVIO_CEPREVEN50.xlsx');
-  alert('✅ Exportados '+data.length+' invitados');
+function exportParaEnvio(){
+  exportXLSX(guests.map(g=>({'ID':g.id,'NOMBRE':g.nombre,'EMPRESA':g.empresa||'','EMAIL':g.email||'','TRATAMIENTO':g.tratamiento||'Estimado/a'})),'INVITADOS_ENVIO_CEPREVEN50.xlsx');
 }
 function exportAsistentes(){
   exportXLSX(guests.filter(g=>g.asiste).map(g=>({Nombre:g.nombre,Empresa:g.empresa||'',Email:g.email||'',Hora:g.horaAcceso||'',Tratamiento:g.tratamiento||''})),'asistentes_cepreven50.xlsx');
