@@ -967,49 +967,32 @@ ua.addEventListener('drop',e=>{e.preventDefault();ua.style.borderColor='rgba(232
 function sendInvite(id){
   const g=guests.find(x=>x.id===id);
   if(!g){alert('Invitado no encontrado');return;}
-  if(!g.email||!g.email.includes('@')){alert('Este invitado no tiene email válido');return;}
-
+  if(!g.email||!g.email.includes('@')){alert('Este invitado no tiene email valido');return;}
   const btn=document.getElementById('sendbtn-'+id);
-  if(btn){btn.disabled=true;btn.textContent='⏳ Preparando...';}
-
-  // Generate QR SVG using QRGen (same as app preview)
-  const qr=QRGen.make(JSON.stringify({id:g.id,n:g.nombre}),0);
-  const qrSvg=QRGen.toSVG(qr,130);
-
-  // Build invitation HTML identical to preview
-  let invHtml=INV_TEMPLATE;
-  invHtml=invHtml.replace('GUEST_NOMBRE',g.nombre.replace(/</g,'&lt;').replace(/>/g,'&gt;'));
-  invHtml=invHtml.replace('__LOGO__',LOGO_B64);
-  invHtml=invHtml.replace('GUEST_QR',qrSvg);
-
-  // Open print window
-  const win=window.open('','_blank','width=620,height=900');
-  if(!win){
-    alert('Permite las ventanas emergentes para este sitio e inténtalo de nuevo.');
-    if(btn){btn.disabled=false;btn.textContent='📧 Enviar';}
-    return;
+  if(btn){btn.disabled=true;btn.textContent='Preparando...';}
+  try{
+    const qr=QRGen.make(JSON.stringify({id:g.id,n:g.nombre}),0);
+    const qrSvg=QRGen.toSVG(qr,130);
+    let inv=INV_TEMPLATE;
+    inv=inv.replace('GUEST_NOMBRE',g.nombre.replace(/</g,'&lt;').replace(/>/g,'&gt;'));
+    inv=inv.replace('__LOGO__',LOGO_B64);
+    inv=inv.replace('GUEST_QR',qrSvg);
+    const win=window.open('','_blank','width=620,height=900');
+    if(!win){alert('Permite ventanas emergentes para este sitio.');if(btn){btn.disabled=false;btn.textContent='Enviar';}return;}
+    win.document.write(inv);
+    win.document.close();
+    const t=g.tratamiento||'Estimado/a';
+    const nl='%0A';
+    const asunto=encodeURIComponent('Invitacion CEPREVEN 50 Aniversario 22 junio 2026');
+    const cuerpo=encodeURIComponent(t+' '+g.nombre+',')+nl+nl+encodeURIComponent('Nos complace hacerle llegar su invitacion personal para el acto de celebracion del 50 aniversario de CEPREVEN.')+nl+nl+encodeURIComponent('Adjunto encontrara su invitacion con el codigo QR de acceso. Le rogamos que la presente a la entrada del evento.')+nl+nl+encodeURIComponent('Le esperamos el proximo lunes, 22 de junio de 2026, en el Museo Nacional del Prado (Puerta de los Jeronimos). La acreditacion comenzara a las 20:20 h.')+nl+nl+encodeURIComponent('Atentamente, CEPREVEN');
+    setTimeout(function(){window.location.href='mailto:'+g.email+'?subject='+asunto+'&body='+cuerpo;},1500);
+    if(btn){btn.disabled=false;btn.textContent='Listo';btn.classList.remove('btn-primary');btn.classList.add('btn-outline');}
+    const badge=document.getElementById('sendbadge-'+id);
+    if(badge){badge.innerHTML='<span class="sent-badge">Listo</span>';}
+  }catch(err){
+    alert('Error: '+err.message);
+    if(btn){btn.disabled=false;btn.textContent='Enviar';}
   }
-  win.document.write(invHtml);
-  win.document.close();
-
-  // Open Outlook after short delay
-  const t=g.tratamiento||'Estimado/a';
-  const s=encodeURIComponent('Invitación · CEPREVEN 50 Aniversario · 22 de junio de 2026');
-  const b=encodeURIComponent(t+' '+g.nombre+',
-
-Nos complace hacerle llegar su invitación personal para el acto de celebración del 50 aniversario de CEPREVEN.
-
-Adjunto encontrará su invitación con el código QR de acceso. Le rogamos que la presente a la entrada del evento.
-
-Le esperamos el próximo lunes, 22 de junio de 2026, en el Museo Nacional del Prado (Puerta de los Jerónimos). La acreditación comenzará a las 20:20 h.
-
-Atentamente,
-CEPREVEN');
-  setTimeout(()=>{window.location.href='mailto:'+g.email+'?subject='+s+'&body='+b;},1500);
-
-  if(btn){btn.disabled=false;btn.textContent='✅ Listo';btn.classList.remove('btn-primary');btn.classList.add('btn-outline');}
-  const badge=document.getElementById('sendbadge-'+id);
-  if(badge){badge.innerHTML='<span class="sent-badge">✓ Listo</span>';}
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getDatabase, ref, set, get, onValue, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
   const firebaseConfig = {
