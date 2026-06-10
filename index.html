@@ -154,8 +154,8 @@ input::placeholder{color:var(--text-dim);}
 .inv-lugar-nom{font-family:"Cormorant Garamond",serif;font-size:16px;font-weight:600;color:#1a0f05;margin-bottom:2px;}
 .inv-lugar-dir{font-size:8px;letter-spacing:1px;color:#9a8060;text-transform:uppercase;}
 .inv-puntualidad{font-size:8px;letter-spacing:1.5px;text-transform:uppercase;color:#c9923a;text-align:center;margin-bottom:13px;font-style:italic;}
-.inv-qr-sec{text-align:center;margin-bottom:5px;}
-.inv-qr-wrap{background:#fff;display:inline-block;padding:6px;border-radius:3px;border:1px solid rgba(200,160,80,0.2);}
+.inv-qr-sec{text-align:center;margin-bottom:5px;display:flex;flex-direction:column;align-items:center;}
+.inv-qr-wrap{background:#fff;display:inline-block;padding:6px;border-radius:3px;border:1px solid rgba(200,160,80,0.2);vertical-align:middle;}
 .inv-qr-label{font-size:7.5px;letter-spacing:1.5px;text-transform:uppercase;color:#b89a5a;margin-top:6px;}
 .inv-nota{font-size:7.5px;color:#c8b898;text-align:center;margin-top:2px;}
 .inv-stripe-bot{height:3px;background:linear-gradient(90deg,#c0161a,#e8431a,#f5a623);}
@@ -262,7 +262,7 @@ select.tratamiento-select{width:auto;padding:4px 8px;font-size:12px;}
         </div>
         <div class="inv-lugar"><div class="inv-lugar-nom">Museo Nacional del Prado</div><div class="inv-lugar-dir">Puerta de los Jerónimos &middot; Paseo del Prado &middot; Madrid</div></div>
         <div class="inv-puntualidad">Se ruega puntualidad</div>
-        <div class="inv-qr-sec"><div class="inv-qr-wrap" id="preview-qr-wrap" style="width:110px;height:110px;"></div><div class="inv-qr-label">Presentar a la entrada · Acceso personal</div></div>
+        <div class="inv-qr-sec"><div class="inv-qr-wrap" id="preview-qr-wrap" style="width:110px;height:110px;display:flex;align-items:center;justify-content:center;"></div><div class="inv-qr-label">Presentar a la entrada · Acceso personal</div></div>
         <div class="inv-nota">Invitación personal e intransferible</div>
       </div>
       <div class="inv-stripe-bot"></div>
