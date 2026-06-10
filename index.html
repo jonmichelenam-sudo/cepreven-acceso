@@ -9,7 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getDatabase, ref, set, onValue, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+  import { getDatabase, ref, set, get, onValue, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
   const firebaseConfig = {
     apiKey: "AIzaSyDU54sm8ZVijB3OLFC4ZokPDwHaJukNy3g",
     authDomain: "cepreven-eventos.firebaseapp.com",
@@ -21,7 +21,7 @@
   };
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
-  window._fb = { db, ref, set, onValue, update };
+  window._fb = { db, ref, set, get, onValue, update };
   window._fbReady = true;
   document.dispatchEvent(new Event('firebase-ready'));
 </script>
@@ -818,19 +818,41 @@ function renderInviteCard(idx){
 function prevInvite(dir){previewIndex=(previewIndex+dir+guests.length)%guests.length;renderInviteCard(previewIndex);}
 
 // ── EXPORT ────────────────────────────────────────────────────────
-function exportParaEnvio(){
-  if(!guests||guests.length===0){
-    alert('No hay invitados cargados. Asegúrate de que la lista está importada y sincronizada.');
+async function exportParaEnvio(){
+  // Lee directamente de Firebase para asegurar datos actualizados
+  let data = [];
+  if(window._fbReady){
+    const {db,ref,get} = window._fb;
+    try{
+      const snap = await get(ref(db,'guests'));
+      const fbGuests = snap.val() ? Object.values(snap.val()) : [];
+      if(fbGuests.length > 0){
+        data = fbGuests.map(g=>({
+          'ID': g.id||'',
+          'NOMBRE': g.nombre||'',
+          'EMPRESA': g.empresa||'',
+          'EMAIL': g.email||'',
+          'TRATAMIENTO': g.tratamiento||'Estimado/a'
+        }));
+      }
+    }catch(e){ console.error('Firebase read error:',e); }
+  }
+  // Fallback a variable local
+  if(data.length===0 && guests && guests.length>0){
+    data = guests.map(g=>({
+      'ID': g.id||'',
+      'NOMBRE': g.nombre||'',
+      'EMPRESA': g.empresa||'',
+      'EMAIL': g.email||'',
+      'TRATAMIENTO': g.tratamiento||'Estimado/a'
+    }));
+  }
+  if(data.length===0){
+    alert('No hay invitados. Total en memoria: '+guests.length);
     return;
   }
-  const data=guests.map(g=>({
-    'ID':g.id,
-    'NOMBRE':g.nombre,
-    'EMPRESA':g.empresa||'',
-    'EMAIL':g.email||'',
-    'TRATAMIENTO':g.tratamiento||'Estimado/a'
-  }));
   exportXLSX(data,'INVITADOS_ENVIO_CEPREVEN50.xlsx');
+  alert('✅ Exportados '+data.length+' invitados');
 }
 function exportAsistentes(){
   exportXLSX(guests.filter(g=>g.asiste).map(g=>({Nombre:g.nombre,Empresa:g.empresa||'',Email:g.email||'',Hora:g.horaAcceso||'',Tratamiento:g.tratamiento||''})),'asistentes_cepreven50.xlsx');
