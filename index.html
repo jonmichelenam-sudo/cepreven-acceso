@@ -738,13 +738,13 @@ function refreshAllViews(){
     document.getElementById('scanner-wrap').style.display=hasG?'block':'none';
     document.getElementById('manual-check-card').style.display=hasG?'block':'none';
   }
-  ['stats-section','invite-controls','lista-table-wrap','lista-btns','informe-content'].forEach(id=>{
-    const el=document.getElementById(id);if(el)el.style.display=hasG?(id==='lista-table-wrap'?'block':'block'):'none';
-  });
+  // Show/hide elements based on guest list
+  const showIds=['stats-section','invite-controls','lista-table-wrap','lista-btns','informe-content'];
+  showIds.forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=hasG?'block':'none';});
   ['invite-empty','lista-empty','informe-empty'].forEach(id=>{
     const el=document.getElementById(id);if(el)el.style.display=hasG?'none':'block';
   });
-  if(hasG)renderInforme();
+  if(hasG){renderInforme();}
 }
 
 function updateStats(){
@@ -819,7 +819,10 @@ function prevInvite(dir){previewIndex=(previewIndex+dir+guests.length)%guests.le
 
 // ── EXPORT ────────────────────────────────────────────────────────
 function exportParaEnvio(){
-  // Export with ID, nombre, empresa, email, tratamiento — ready for Python script
+  if(!guests||guests.length===0){
+    alert('No hay invitados cargados. Asegúrate de que la lista está importada y sincronizada.');
+    return;
+  }
   const data=guests.map(g=>({
     'ID':g.id,
     'NOMBRE':g.nombre,
