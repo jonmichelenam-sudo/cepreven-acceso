@@ -249,7 +249,8 @@ select.tratamiento-select{width:auto;padding:4px 8px;font-size:12px;}
     <div id="invite-controls" style="display:none">
       <div class="btn-row">
         <button class="btn btn-primary" onclick="showInvitePreviewPanel()">&#128065;&#65039; Vista previa</button>
-        <button class="btn btn-outline" onclick="exportParaEnvio()">&#128228; Exportar Excel</button>
+        <button class="btn btn-outline" onclick="exportParaEnvio()">&#128228; Exportar todos</button>
+  <button class="btn btn-outline" onclick="exportNuevos()" title="Exporta solo los invitados que aún no se han enviado">&#10133; Exportar nuevos</button>
       </div>
       <div style="margin-top:16px;font-size:11px;color:var(--text-mid);padding:10px;background:var(--orange-light);border-radius:8px;border-left:3px solid var(--orange)">
         Para enviar invitaciones: usa el <strong>panel de lista</strong> donde puedes hacer clic en el email de cada invitado.
@@ -303,7 +304,7 @@ select.tratamiento-select{width:auto;padding:4px 8px;font-size:12px;}
     <div id="lista-empty" class="empty-state"><div class="icon">📋</div><div>Importa primero la lista</div></div>
     <div class="table-wrap" id="lista-table-wrap" style="display:none">
       <table>
-        <thead><tr><th>ASISTE</th><th>Nombre</th><th>Tratamiento</th><th>Empresa</th><th>Email</th></tr></thead>
+        <thead><tr><th>ASISTE</th><th>Nombre</th><th>Tratamiento</th><th>Empresa</th><th>Email</th><th>ENVIADO</th></tr></thead>
         <tbody id="lista-tbody"></tbody>
       </table>
     </div>
@@ -583,7 +584,7 @@ function startProcessRows(rows,mode){
     const tratCol=row[3]!=null?String(row[3]).trim():'';
     if(!nombre)continue;
     const trat=['Estimado','Estimada'].includes(tratCol)?tratCol:detectarTratamiento(nombre);
-    newGuests.push({id:'CEP50-'+String(idCounter).padStart(4,'0'),nombre,empresa,email,tratamiento:trat||'???',asiste:false,horaAcceso:null});
+    newGuests.push({id:'CEP50-'+String(idCounter).padStart(4,'0'),nombre,empresa,email,tratamiento:trat||'???',asiste:false,horaAcceso:null,exportado:false});
     idCounter++;
   }
   const dudosos=newGuests.filter(g=>g.tratamiento==='???');
@@ -616,7 +617,7 @@ async function addManual(){
   const t=document.getElementById('m-tratamiento').value;
   if(!n){alert('El nombre es obligatorio');return;}
   const maxId=guests.reduce((mx,g)=>{const n=parseInt((g.id||'').replace('CEP50-',''));return isNaN(n)?mx:Math.max(mx,n);},0);
-  await saveOne({id:'CEP50-'+String(maxId+1).padStart(4,'0'),nombre:n,empresa:e,email:m,tratamiento:t,asiste:false,horaAcceso:null});
+  await saveOne({id:'CEP50-'+String(maxId+1).padStart(4,'0'),nombre:n,empresa:e,email:m,tratamiento:t,asiste:false,horaAcceso:null,exportado:false});
   ['m-nombre','m-empresa','m-email'].forEach(id=>document.getElementById(id).value='');
 }
 async function loadDemo(){
@@ -680,10 +681,11 @@ function renderLista(){
       +'<td>'+escHtml(g.nombre)+'</td>'
       +'<td><select class="tratamiento-select" onchange="changeTratamiento(\''+g.id+'\',this.value)"><option '+(g.tratamiento==='Estimado'?'selected':'')+'>Estimado</option><option '+(g.tratamiento==='Estimada'?'selected':'')+'>Estimada</option></select></td>'
       +'<td class="muted">'+escHtml(g.empresa||'')+'</td>'
-      +'<td class="muted" style="font-size:11px">'+escHtml(g.email||'')+'</td>';
+      +'<td class="muted" style="font-size:11px">'+escHtml(g.email||'')+'</td>'
+      +'<td style="text-align:center"><input type="checkbox" class="checkbox-asiste" '+(g.exportado?'checked':'')+' onchange="toggleExportado(\''+g.id+'\',this)" title="Marcado al exportar para env\u00edo"></td>';
     tbody.appendChild(tr);
   });
-  if(!list.length)tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:18px;color:var(--text-dim)">Sin resultados</td></tr>';
+  if(!list.length)tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:18px;color:var(--text-dim)">Sin resultados</td></tr>';
 }
 function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 async function toggleAsiste(id,el){
@@ -691,6 +693,7 @@ async function toggleAsiste(id,el){
   if(g){g.asiste=el.checked;g.horaAcceso=el.checked?new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}):null;await saveOne(g);}
 }
 async function changeTratamiento(id,val){const g=guests.find(x=>x.id===id);if(g){g.tratamiento=val;await saveOne(g);}}
+async function toggleExportado(id,el){const g=guests.find(x=>x.id===id);if(g){g.exportado=el.checked;await saveOne(g);}}
 
 // ── Invitations ───────────────────────────────────────────────────
 function showInvitePreviewPanel(){
@@ -711,8 +714,19 @@ function renderInviteCard(idx){
 function prevInvite(dir){previewIndex=(previewIndex+dir+guests.length)%guests.length;renderInviteCard(previewIndex);}
 
 // ── Export ────────────────────────────────────────────────────────
-function exportParaEnvio(){
+async function exportParaEnvio(){
+  if(!guests.length){alert('No hay invitados que exportar.');return;}
   exportXLSX(guests.map(g=>({'ID':g.id,'NOMBRE':g.nombre,'EMPRESA':g.empresa||'','EMAIL':g.email||'','TRATAMIENTO':g.tratamiento||'Estimado/a'})),'INVITADOS_ENVIO_CEPREVEN50.xlsx');
+  // Marcar TODOS como exportados
+  for(const g of guests){if(!g.exportado){g.exportado=true;await saveOne(g);}}
+}
+async function exportNuevos(){
+  const nuevos=guests.filter(g=>!g.exportado);
+  if(!nuevos.length){alert('No hay invitados nuevos sin exportar. Todos los invitados ya han sido exportados.');return;}
+  if(!confirm('Se exportar\u00e1n '+nuevos.length+' invitados nuevos (no exportados previamente) y se marcar\u00e1n como enviados. \u00bfContinuar?'))return;
+  exportXLSX(nuevos.map(g=>({'ID':g.id,'NOMBRE':g.nombre,'EMPRESA':g.empresa||'','EMAIL':g.email||'','TRATAMIENTO':g.tratamiento||'Estimado/a'})),'INVITADOS_NUEVOS_CEPREVEN50.xlsx');
+  // Marcar los nuevos como exportados
+  for(const g of nuevos){g.exportado=true;await saveOne(g);}
 }
 function exportAsistentes(){
   exportXLSX(guests.filter(g=>g.asiste).map(g=>({Nombre:g.nombre,Empresa:g.empresa||'',Email:g.email||'',Hora:g.horaAcceso||'',Tratamiento:g.tratamiento||''})),'asistentes_cepreven50.xlsx');
