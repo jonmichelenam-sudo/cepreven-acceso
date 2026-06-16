@@ -407,18 +407,16 @@ function rsGenPoly(n){var poly=[1];for(var i=0;i<n;i++){var nw=new Array(poly.le
 function rsEncode(data,nEcc){var gen=rsGenPoly(nEcc);var res=new Array(nEcc).fill(0);for(var k=0;k<data.length;k++){var factor=data[k]^res[0];res=res.slice(1);res.push(0);for(var i=0;i<nEcc;i++)res[i]^=gfMul(gen[i+1],factor);}return res;}
 function toBytes(s){var r=[];for(var i=0;i<s.length;i++){var c=s.charCodeAt(i);if(c<128)r.push(c);else if(c<2048){r.push(192|(c>>6));r.push(128|(c&63));}else{r.push(224|(c>>12));r.push(128|((c>>6)&63));r.push(128|(c&63));}}return r;}
 function makeQR(text,ecl){
-  ecl=1;
   var data=toBytes(text);
-  var ECC_CW=[[-1,7,10,13,17],[-1,10,16,22,28],[-1,15,26,36,44],[-1,20,36,52,64],[-1,26,48,72,88],[-1,36,64,96,112],[-1,40,72,108,130],[-1,48,88,132,156],[-1,60,110,160,192],[-1,72,130,192,224]];
-  var NUM_BLOCKS=[[-1,1,1,1,1],[-1,1,1,1,1],[-1,1,1,2,2],[-1,1,2,2,4],[-1,1,2,4,4],[-1,2,4,4,4],[-1,2,4,6,5],[-1,2,4,6,6],[-1,2,5,8,8],[-1,4,5,8,8]];
-  var TOTAL_CW=[-1,26,44,70,100,134,172,196,242,292,346];
+  var ECC_CW=[7,10,15,20,26,18,20,24,30,18];
+  var NUM_BLOCKS=[1,1,1,1,1,2,2,2,2,4];
+  var TOTAL_CW=[26,44,70,100,134,172,196,242,292,346];
   var ver=null,eccPerBlock,nblocks,totalDataCw,cciBits;
   for(var v=1;v<=10;v++){
-    var epb=ECC_CW[v-1][ecl+1],nb=NUM_BLOCKS[v-1][ecl+1];
-    var tdc=TOTAL_CW[v]-epb*nb;
+    var epb=ECC_CW[v-1],nb=NUM_BLOCKS[v-1];
+    var tdc=TOTAL_CW[v-1]-epb*nb;
     var cci=v<=9?8:16;
-    var needed=4+cci+data.length*8;
-    if(needed<=tdc*8){ver=v;eccPerBlock=epb;nblocks=nb;totalDataCw=tdc;cciBits=cci;break;}
+    if(4+cci+data.length*8<=tdc*8){ver=v;eccPerBlock=epb;nblocks=nb;totalDataCw=tdc;cciBits=cci;break;}
   }
   if(ver===null)throw new Error("Data too long");
   var size=17+4*ver;
@@ -431,7 +429,7 @@ function makeQR(text,ecl){
   var pad=[0xEC,0x11],pi=0;
   while(bits.length<totalDataCw*8){addBits(pad[pi%2],8);pi++;}
   var dataCw=[];
-  for(var i=0;i<bits.length;i+=8){var b=0;for(var j=0;j<8;j++)b=(b<<1)|bits[i+j];dataCw.push(b);}
+  for(var i=0;i<bits.length;i+=8){var bb=0;for(var j=0;j<8;j++)bb=(bb<<1)|bits[i+j];dataCw.push(bb);}
   var numShort=nblocks-(totalDataCw%nblocks);
   var shortLen=Math.floor(totalDataCw/nblocks);
   var blocks=[],idx=0;
@@ -447,13 +445,13 @@ function makeQR(text,ecl){
   var allBits=[];
   for(var i=0;i<fin.length;i++)for(var j=7;j>=0;j--)allBits.push((fin[i]>>j)&1);
   var N=size;
-  var mod=[];for(var i=0;i<N;i++){mod.push(new Array(N).fill(null));}
-  function placeFinder(r,c){for(var dr=-1;dr<8;dr++)for(var dc=-1;dc<8;dc++){var rr=r+dr,cc=c+dc;if(rr>=0&&rr<N&&cc>=0&&cc<N){if(dr>=0&&dr<=6&&dc>=0&&dc<=6){var on=((dr===0||dr===6)&&dc>=0&&dc<=6)||((dc===0||dc===6)&&dr>=0&&dr<=6)||(dr>=2&&dr<=4&&dc>=2&&dc<=4);mod[rr][cc]=on;}else mod[rr][cc]=false;}}}
+  var mod=[];for(var i=0;i<N;i++)mod.push(new Array(N).fill(null));
+  function placeFinder(r,c){for(var dr=-1;dr<8;dr++)for(var dc=-1;dc<8;dc++){var rr=r+dr,cc=c+dc;if(rr>=0&&rr<N&&cc>=0&&cc<N){if(dr>=0&&dr<=6&&dc>=0&&dc<=6){mod[rr][cc]=((dr===0||dr===6)&&dc>=0&&dc<=6)||((dc===0||dc===6)&&dr>=0&&dr<=6)||(dr>=2&&dr<=4&&dc>=2&&dc<=4);}else mod[rr][cc]=false;}}}
   placeFinder(0,0);placeFinder(0,N-7);placeFinder(N-7,0);
   for(var i=0;i<N;i++){if(mod[6][i]===null)mod[6][i]=(i%2===0);if(mod[i][6]===null)mod[i][6]=(i%2===0);}
   var ALIGN=[[],[],[6,18],[6,22],[6,26],[6,30],[6,34],[6,22,38],[6,24,42],[6,26,46],[6,28,50]];
   var pos=ALIGN[ver];
-  for(var a=0;a<pos.length;a++)for(var b=0;b<pos.length;b++){var ar=pos[a],ac=pos[b];if((ar<8&&ac<8)||(ar<8&&ac>N-9)||(ar>N-9&&ac<8))continue;for(var dr=-2;dr<=2;dr++)for(var dc=-2;dc<=2;dc++){var rr=ar+dr,cc=ac+dc;if(rr>=0&&rr<N&&cc>=0&&cc<N)mod[rr][cc]=(Math.abs(dr)===2||Math.abs(dc)===2||(dr===0&&dc===0));}}
+  for(var a=0;a<pos.length;a++)for(var b2=0;b2<pos.length;b2++){var ar=pos[a],ac=pos[b2];if((ar<8&&ac<8)||(ar<8&&ac>N-9)||(ar>N-9&&ac<8))continue;for(var dr=-2;dr<=2;dr++)for(var dc=-2;dc<=2;dc++){var rr=ar+dr,cc=ac+dc;if(rr>=0&&rr<N&&cc>=0&&cc<N)mod[rr][cc]=(Math.abs(dr)===2||Math.abs(dc)===2||(dr===0&&dc===0));}}
   mod[4*ver+9][8]=true;
   for(var i=0;i<9;i++){if(mod[8][i]===null)mod[8][i]=false;if(mod[i][8]===null)mod[i][8]=false;}
   for(var i=0;i<8;i++){if(mod[8][N-1-i]===null)mod[8][N-1-i]=false;if(mod[N-1-i][8]===null)mod[N-1-i][8]=false;}
@@ -461,36 +459,26 @@ function makeQR(text,ecl){
   var di=0,up=true,col=N-1;
   while(col>0){
     if(col===6)col--;
-    for(var i=0;i<N;i++){
-      var row=up?(N-1-i):i;
-      for(var cc=0;cc<2;cc++){var c=col-cc;if(!isFunc[row][c]){var bit=di<allBits.length?allBits[di]:0;di++;mod[row][c]=(bit===1);}}
-    }
+    for(var i=0;i<N;i++){var row=up?(N-1-i):i;for(var cc=0;cc<2;cc++){var c=col-cc;if(!isFunc[row][c]){mod[row][c]=di<allBits.length?(allBits[di]===1):false;di++;}}}
     up=!up;col-=2;
   }
   function applyMask(m){
-    var out=[];for(var r=0;r<N;r++){out.push(mod[r].slice());}
+    var out=[];for(var r=0;r<N;r++)out.push(mod[r].slice());
     for(var r=0;r<N;r++)for(var c=0;c<N;c++){
       if(isFunc[r][c])continue;
-      var flip;
-      if(m===0)flip=((r+c)%2===0);
-      else if(m===1)flip=(r%2===0);
-      else if(m===2)flip=(c%3===0);
-      else if(m===3)flip=((r+c)%3===0);
-      else if(m===4)flip=((Math.floor(r/2)+Math.floor(c/3))%2===0);
-      else if(m===5)flip=(((r*c)%2)+((r*c)%3)===0);
-      else if(m===6)flip=((((r*c)%2)+((r*c)%3))%2===0);
-      else flip=((((r+c)%2)+((r*c)%3))%2===0);
-      if(flip)out[r][c]=!out[r][c];
+      var f;
+      if(m===0)f=((r+c)%2===0);else if(m===1)f=(r%2===0);else if(m===2)f=(c%3===0);
+      else if(m===3)f=((r+c)%3===0);else if(m===4)f=((Math.floor(r/2)+Math.floor(c/3))%2===0);
+      else if(m===5)f=(((r*c)%2)+((r*c)%3)===0);else if(m===6)f=((((r*c)%2)+((r*c)%3))%2===0);
+      else f=((((r+c)%2)+((r*c)%3))%2===0);
+      if(f)out[r][c]=!out[r][c];
     }
     return out;
   }
-  function placeFormat(matrix,m){
-    var ECL_BITS={0:1,1:0,2:3,3:2};
-    var d=(ECL_BITS[ecl]<<3)|m;
-    var rem=d;
+  function placeFmt(matrix,m){
+    var ECLB={0:1,1:0,2:3,3:2};var d=(ECLB[ecl===undefined?0:0]<<3)|m;var rem=d;
     for(var i=0;i<10;i++){rem=rem<<1;if(rem&0x400)rem^=0x537;}
-    var bits2=((d<<10)|rem)^0x5412;
-    var fmt=[];for(var i=0;i<15;i++)fmt.push((bits2>>i)&1);
+    var b=((d<<10)|rem)^0x5412;var fmt=[];for(var i=0;i<15;i++)fmt.push((b>>i)&1);
     var c1=[[0,8],[1,8],[2,8],[3,8],[4,8],[5,8],[7,8],[8,8],[8,7],[8,5],[8,4],[8,3],[8,2],[8,1],[8,0]];
     for(var i=0;i<15;i++)matrix[c1[i][0]][c1[i][1]]=(fmt[i]===1);
     var c2=[[8,N-1],[8,N-2],[8,N-3],[8,N-4],[8,N-5],[8,N-6],[8,N-7],[N-8,8],[N-7,8],[N-6,8],[N-5,8],[N-4,8],[N-3,8],[N-2,8],[N-1,8]];
@@ -498,32 +486,16 @@ function makeQR(text,ecl){
   }
   function penalty(matrix){
     var p=0;
-    for(var r=0;r<N;r++){
-      for(var dir=0;dir<2;dir++){
-        var run=1;
-        for(var i=1;i<N;i++){
-          var cur=dir===0?matrix[r][i]:matrix[i][r];
-          var prev=dir===0?matrix[r][i-1]:matrix[i-1][r];
-          if(cur===prev)run++;else{if(run>=5)p+=3+(run-5);run=1;}
-        }
-        if(run>=5)p+=3+(run-5);
-      }
-    }
-    for(var r=0;r<N-1;r++)for(var c=0;c<N-1;c++){if(matrix[r][c]===matrix[r][c+1]&&matrix[r][c]===matrix[r+1][c]&&matrix[r][c]===matrix[r+1][c+1])p+=3;}
+    for(var r=0;r<N;r++)for(var dir=0;dir<2;dir++){var run=1;for(var i=1;i<N;i++){var cur=dir===0?matrix[r][i]:matrix[i][r];var prev=dir===0?matrix[r][i-1]:matrix[i-1][r];if(cur===prev)run++;else{if(run>=5)p+=3+(run-5);run=1;}}if(run>=5)p+=3+(run-5);}
+    for(var r=0;r<N-1;r++)for(var c=0;c<N-1;c++)if(matrix[r][c]===matrix[r][c+1]&&matrix[r][c]===matrix[r+1][c]&&matrix[r][c]===matrix[r+1][c+1])p+=3;
     return p;
   }
-  var bestMask=0,bestPen=null,bestMatrix=null;
-  for(var m=0;m<8;m++){
-    var cand=applyMask(m);
-    placeFormat(cand,m);
-    var pen=penalty(cand);
-    if(bestPen===null||pen<bestPen){bestPen=pen;bestMask=m;bestMatrix=cand;}
-  }
+  var bestPen=null,bestMatrix=null;
+  for(var m=0;m<8;m++){var cand=applyMask(m);placeFmt(cand,m);var pen=penalty(cand);if(bestPen===null||pen<bestPen){bestPen=pen;bestMatrix=cand;}}
   return {matrix:bestMatrix,size:N};
 }
 function toSVG(qr,px){
-  var N=qr.size,matrix=qr.matrix,quiet=4,total=N+2*quiet,cell=px/total;
-  var rects="";
+  var N=qr.size,matrix=qr.matrix,quiet=4,total=N+2*quiet,cell=px/total,rects="";
   for(var r=0;r<N;r++)for(var c=0;c<N;c++){if(matrix[r][c]){var x=((c+quiet)*cell).toFixed(3),y=((r+quiet)*cell).toFixed(3),s=cell.toFixed(3);rects+='<rect x="'+x+'" y="'+y+'" width="'+s+'" height="'+s+'"/>';}}
   return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+px+' '+px+'" width="'+px+'" height="'+px+'"><rect width="'+px+'" height="'+px+'" fill="white"/><g fill="#1a0f05">'+rects+'</g></svg>';
 }
